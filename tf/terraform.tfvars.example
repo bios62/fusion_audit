@@ -1,0 +1,40 @@
+tenancy_ocid         = "ocid1.tenancy.oc1..example"
+user_ocid            = "ocid1.user.oc1..example"
+fingerprint          = "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
+private_key_path     = "~/.oci/oci_api_key.pem"
+private_key_password = null
+region               = "eu-frankfurt-1"
+compartment_ocid     = "ocid1.compartment.oc1..example"
+
+defined_tags = {}
+freeform_tags = {
+  Project = "fusion_audit"
+}
+
+vault_display_name        = "fusion-audit-vault"
+vault_type                = "DEFAULT"
+vault_key_display_name    = "fusion-audit-secrets-key"
+vault_key_protection_mode = "SOFTWARE"
+vault_key_shape_algorithm = "AES"
+vault_key_shape_length    = 32
+
+fusion_api_secrets = {
+  "fusion-audit-api-base-url" = "https://example.fa.ocs.oraclecloud.com"
+  "fusion-audit-api-username" = "replace-me"
+  "fusion-audit-api-password" = "replace-me"
+}
+
+stream_pool_name                         = "fusion-audit-stream-pool"
+stream_pool_auto_create_topics_enable    = false
+stream_pool_log_retention_hours          = 24
+stream_pool_num_partitions               = 1
+stream_pool_use_vault_key_for_encryption = false
+stream_pool_private_subnet_ocid          = null
+stream_pool_private_nsg_ocids            = []
+stream_pool_private_endpoint_ip          = null
+
+stream_name               = "fusion-audit-trail"
+stream_partitions         = 1
+stream_retention_in_hours = 24
+
+connect_harness_name = "fusion-audit-connect"

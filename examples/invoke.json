@@ -1,0 +1,31 @@
+{
+  "lookback_hours": 4,
+  "dry_run": false,
+  "vault": {
+    "fusion_base_url_secret_id": "ocid1.vaultsecret.oc1..fusion-base-url",
+    "fusion_username_secret_id": "ocid1.vaultsecret.oc1..fusion-username",
+    "fusion_password_secret_id": "ocid1.vaultsecret.oc1..fusion-password",
+    "kafka_password_secret_id": "ocid1.vaultsecret.oc1..oci-streaming-auth-token"
+  },
+  "fusion": {
+    "product": "OPSS",
+    "event_type": "all",
+    "request_mode": "body",
+    "page_size": 500,
+    "max_pages": 100,
+    "time_zone": "UTC",
+    "attribute_detail_mode": true,
+    "include_attributes": true,
+    "include_child_objects": false,
+    "include_extended_object_identifier_columns": false,
+    "include_impersonator": false
+  },
+  "kafka": {
+    "bootstrap_servers": "streaming.eu-frankfurt-1.oci.oraclecloud.com:9092",
+    "topic": "fusion-audit-trail",
+    "security_protocol": "SASL_SSL",
+    "sasl_mechanism": "PLAIN",
+    "username": "tenancyName/domain/username/ocid1.streampool.oc1..example",
+    "client_id": "fusion-audit-function"
+  }
+}

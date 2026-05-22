@@ -1,0 +1,602 @@
+{
+  "status": "SUCCESS",
+  "auditData": [
+    {
+      "date": "2026-05-21 08:00:00",
+      "product": "OPSS",
+      "module": "Payables",
+      "businessObjectType": "Supplier",
+      "qualifiedBusinessObject": "Financials/Payables/Suppliers/Supplier",
+      "objectName": "Supplier",
+      "objectIdentifier": "SUP-10045",
+      "objectDisplayName": "Nordic Office Supplies AS",
+      "eventType": "UPDATE",
+      "userInternalName": "AP_MANAGER",
+      "userDisplayName": "Ava Lind",
+      "description": "Updated supplier bank account approval status.",
+      "descriptionInternal": "SupplierProfile.bankAccountApprovalStatus changed from Pending to Approved.",
+      "transactionId": "TXN-FA-000001",
+      "requestId": "REQ-20260521-0001",
+      "sessionId": "SES-8f4f58d1",
+      "ipAddress": "10.20.10.14",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Bank Account Approval Status",
+          "oldValue": "Pending",
+          "newValue": "Approved"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 08:04:00",
+      "product": "OPSS",
+      "module": "General Ledger",
+      "businessObjectType": "Journal",
+      "qualifiedBusinessObject": "Financials/GeneralLedger/Journals/Journal",
+      "objectName": "Manual Journal",
+      "objectIdentifier": "JRN-2026-000781",
+      "objectDisplayName": "Accrual Reversal May 2026",
+      "eventType": "CREATE",
+      "userInternalName": "GL_ACCOUNTANT",
+      "userDisplayName": "Mikkel Hansen",
+      "description": "Created manual journal batch.",
+      "descriptionInternal": "JournalBatch created with source Manual and category Accrual.",
+      "transactionId": "TXN-FA-000002",
+      "requestId": "REQ-20260521-0002",
+      "sessionId": "SES-fc28d211",
+      "ipAddress": "10.20.11.22",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Journal Amount",
+          "oldValue": null,
+          "newValue": "125000.00"
+        },
+        {
+          "name": "Ledger",
+          "oldValue": null,
+          "newValue": "Vision Norway Ledger"
+        }
+      ],
+      "childObjects": [
+        {
+          "businessObjectType": "Journal Line",
+          "objectIdentifier": "JRN-2026-000781-001",
+          "eventType": "CREATE"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-21 08:10:00",
+      "product": "OPSS",
+      "module": "Receivables",
+      "businessObjectType": "CustomerAccount",
+      "qualifiedBusinessObject": "Financials/Receivables/Customers/CustomerAccount",
+      "objectName": "Customer Account",
+      "objectIdentifier": "CUST-20488",
+      "objectDisplayName": "Fjord Retail Group",
+      "eventType": "UPDATE",
+      "userInternalName": "AR_SPECIALIST",
+      "userDisplayName": "Sara Nguyen",
+      "description": "Changed customer credit limit.",
+      "descriptionInternal": "CustomerAccount.creditLimit changed from 50000 to 75000.",
+      "transactionId": "TXN-FA-000003",
+      "requestId": "REQ-20260521-0003",
+      "sessionId": "SES-2d51a7e0",
+      "ipAddress": "10.20.12.18",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Credit Limit",
+          "oldValue": "50000",
+          "newValue": "75000"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 08:17:00",
+      "product": "OPSS",
+      "module": "Procurement",
+      "businessObjectType": "PurchaseOrder",
+      "qualifiedBusinessObject": "Procurement/Purchasing/PurchaseOrder",
+      "objectName": "Purchase Order",
+      "objectIdentifier": "PO-560091",
+      "objectDisplayName": "PO-560091",
+      "eventType": "APPROVE",
+      "userInternalName": "PROCUREMENT_APPROVER",
+      "userDisplayName": "Jonas Berg",
+      "description": "Approved purchase order.",
+      "descriptionInternal": "PurchaseOrder.status changed from In Process to Approved.",
+      "transactionId": "TXN-FA-000004",
+      "requestId": "REQ-20260521-0004",
+      "sessionId": "SES-0de424fb",
+      "ipAddress": "10.20.13.44",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Status",
+          "oldValue": "In Process",
+          "newValue": "Approved"
+        },
+        {
+          "name": "Amount",
+          "oldValue": "18450.00",
+          "newValue": "18450.00"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 08:23:00",
+      "product": "OPSS",
+      "module": "Expenses",
+      "businessObjectType": "ExpenseReport",
+      "qualifiedBusinessObject": "Financials/Expenses/ExpenseReport",
+      "objectName": "Expense Report",
+      "objectIdentifier": "EXP-304400",
+      "objectDisplayName": "Client Visit Bergen",
+      "eventType": "SUBMIT",
+      "userInternalName": "EMPLOYEE_1029",
+      "userDisplayName": "Nora Olsen",
+      "description": "Submitted expense report for approval.",
+      "descriptionInternal": "ExpenseReport.status changed from Saved to Pending Approval.",
+      "transactionId": "TXN-FA-000005",
+      "requestId": "REQ-20260521-0005",
+      "sessionId": "SES-66ac110d",
+      "ipAddress": "10.20.14.15",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Report Total",
+          "oldValue": "0.00",
+          "newValue": "1380.50"
+        },
+        {
+          "name": "Status",
+          "oldValue": "Saved",
+          "newValue": "Pending Approval"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 08:29:00",
+      "product": "OPSS",
+      "module": "Cash Management",
+      "businessObjectType": "BankStatement",
+      "qualifiedBusinessObject": "Financials/CashManagement/BankStatement",
+      "objectName": "Bank Statement",
+      "objectIdentifier": "BS-20260521-001",
+      "objectDisplayName": "DNB Operating Account",
+      "eventType": "IMPORT",
+      "userInternalName": "CASH_MANAGER",
+      "userDisplayName": "Lina Johansen",
+      "description": "Imported bank statement.",
+      "descriptionInternal": "BankStatement imported from external bank file CAMT053.",
+      "transactionId": "TXN-FA-000006",
+      "requestId": "REQ-20260521-0006",
+      "sessionId": "SES-2aaf3f8b",
+      "ipAddress": "10.20.15.21",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Statement Number",
+          "oldValue": null,
+          "newValue": "BS-20260521-001"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 08:36:00",
+      "product": "OPSS",
+      "module": "Fixed Assets",
+      "businessObjectType": "Asset",
+      "qualifiedBusinessObject": "Financials/Assets/Asset",
+      "objectName": "Asset",
+      "objectIdentifier": "AST-980022",
+      "objectDisplayName": "Warehouse Forklift",
+      "eventType": "UPDATE",
+      "userInternalName": "ASSET_ACCOUNTANT",
+      "userDisplayName": "Erik Sand",
+      "description": "Changed asset depreciation method.",
+      "descriptionInternal": "Asset.depreciationMethod changed from STL to DB.",
+      "transactionId": "TXN-FA-000007",
+      "requestId": "REQ-20260521-0007",
+      "sessionId": "SES-b4a1d821",
+      "ipAddress": "10.20.16.12",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Depreciation Method",
+          "oldValue": "STL",
+          "newValue": "DB"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 08:41:00",
+      "product": "OPSS",
+      "module": "Human Resources",
+      "businessObjectType": "WorkerAssignment",
+      "qualifiedBusinessObject": "HCM/Worker/Assignment",
+      "objectName": "Worker Assignment",
+      "objectIdentifier": "ASG-778201",
+      "objectDisplayName": "Mia Karlsen Assignment",
+      "eventType": "UPDATE",
+      "userInternalName": "HR_SPECIALIST",
+      "userDisplayName": "Oskar Nilsen",
+      "description": "Updated worker department assignment.",
+      "descriptionInternal": "WorkerAssignment.department changed from Sales to Operations.",
+      "transactionId": "TXN-FA-000008",
+      "requestId": "REQ-20260521-0008",
+      "sessionId": "SES-c33fa9be",
+      "ipAddress": "10.20.17.32",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Department",
+          "oldValue": "Sales",
+          "newValue": "Operations"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 08:48:00",
+      "product": "OPSS",
+      "module": "Security Console",
+      "businessObjectType": "UserRole",
+      "qualifiedBusinessObject": "Security/Users/UserRole",
+      "objectName": "User Role",
+      "objectIdentifier": "ROLE-GRANT-40177",
+      "objectDisplayName": "ORA_AP_ACCOUNTS_PAYABLE_MANAGER_JOB",
+      "eventType": "CREATE",
+      "userInternalName": "SECURITY_ADMIN",
+      "userDisplayName": "Henrik Dahl",
+      "description": "Granted application role to user.",
+      "descriptionInternal": "UserRole grant created for user AP_MANAGER.",
+      "transactionId": "TXN-FA-000009",
+      "requestId": "REQ-20260521-0009",
+      "sessionId": "SES-a9c37fd2",
+      "ipAddress": "10.20.18.41",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Role Code",
+          "oldValue": null,
+          "newValue": "ORA_AP_ACCOUNTS_PAYABLE_MANAGER_JOB"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 08:55:00",
+      "product": "OPSS",
+      "module": "Order Management",
+      "businessObjectType": "SalesOrder",
+      "qualifiedBusinessObject": "SupplyChain/OrderManagement/SalesOrder",
+      "objectName": "Sales Order",
+      "objectIdentifier": "SO-900771",
+      "objectDisplayName": "SO-900771",
+      "eventType": "CANCEL",
+      "userInternalName": "ORDER_MANAGER",
+      "userDisplayName": "Emma Solberg",
+      "description": "Canceled sales order line.",
+      "descriptionInternal": "SalesOrderLine.status changed from Awaiting Shipping to Canceled.",
+      "transactionId": "TXN-FA-000010",
+      "requestId": "REQ-20260521-0010",
+      "sessionId": "SES-dd10e16f",
+      "ipAddress": "10.20.19.26",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Line Status",
+          "oldValue": "Awaiting Shipping",
+          "newValue": "Canceled"
+        },
+        {
+          "name": "Cancel Reason",
+          "oldValue": null,
+          "newValue": "Customer Request"
+        }
+      ],
+      "childObjects": [
+        {
+          "businessObjectType": "SalesOrderLine",
+          "objectIdentifier": "SO-900771-2",
+          "eventType": "CANCEL"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-21 09:03:00",
+      "product": "OPSS",
+      "module": "Inventory",
+      "businessObjectType": "Item",
+      "qualifiedBusinessObject": "SupplyChain/Inventory/Item",
+      "objectName": "Item",
+      "objectIdentifier": "ITEM-700884",
+      "objectDisplayName": "Replacement Filter Kit",
+      "eventType": "UPDATE",
+      "userInternalName": "INV_ADMIN",
+      "userDisplayName": "Leah Moen",
+      "description": "Updated item planning attribute.",
+      "descriptionInternal": "Item.minMaxPlanningFlag changed from N to Y.",
+      "transactionId": "TXN-FA-000011",
+      "requestId": "REQ-20260521-0011",
+      "sessionId": "SES-96fa73e1",
+      "ipAddress": "10.20.20.10",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Min-Max Planning",
+          "oldValue": "N",
+          "newValue": "Y"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 09:11:00",
+      "product": "OPSS",
+      "module": "Projects",
+      "businessObjectType": "Project",
+      "qualifiedBusinessObject": "Projects/ProjectFoundation/Project",
+      "objectName": "Project",
+      "objectIdentifier": "PRJ-440018",
+      "objectDisplayName": "Customer Portal Upgrade",
+      "eventType": "UPDATE",
+      "userInternalName": "PROJECT_ACCOUNTANT",
+      "userDisplayName": "Sofia Bergheim",
+      "description": "Changed project status.",
+      "descriptionInternal": "Project.status changed from Draft to Approved.",
+      "transactionId": "TXN-FA-000012",
+      "requestId": "REQ-20260521-0012",
+      "sessionId": "SES-1b795bb8",
+      "ipAddress": "10.20.21.19",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Project Status",
+          "oldValue": "Draft",
+          "newValue": "Approved"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 09:18:00",
+      "product": "OPSS",
+      "module": "Tax",
+      "businessObjectType": "TaxRate",
+      "qualifiedBusinessObject": "Financials/Tax/TaxRate",
+      "objectName": "Tax Rate",
+      "objectIdentifier": "VAT-NO-25",
+      "objectDisplayName": "Norway Standard VAT",
+      "eventType": "UPDATE",
+      "userInternalName": "TAX_MANAGER",
+      "userDisplayName": "Thomas Eide",
+      "description": "Updated tax rate effective end date.",
+      "descriptionInternal": "TaxRate.effectiveEndDate changed from null to 2026-12-31.",
+      "transactionId": "TXN-FA-000013",
+      "requestId": "REQ-20260521-0013",
+      "sessionId": "SES-432f75ab",
+      "ipAddress": "10.20.22.38",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Effective End Date",
+          "oldValue": null,
+          "newValue": "2026-12-31"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 09:27:00",
+      "product": "OPSS",
+      "module": "Subledger Accounting",
+      "businessObjectType": "AccountingRule",
+      "qualifiedBusinessObject": "Financials/SubledgerAccounting/AccountingRule",
+      "objectName": "Accounting Rule",
+      "objectIdentifier": "SLA-RULE-033",
+      "objectDisplayName": "Revenue Recognition Rule",
+      "eventType": "UPDATE",
+      "userInternalName": "SLA_ADMIN",
+      "userDisplayName": "Ida Vik",
+      "description": "Updated accounting rule priority.",
+      "descriptionInternal": "AccountingRule.priority changed from 20 to 10.",
+      "transactionId": "TXN-FA-000014",
+      "requestId": "REQ-20260521-0014",
+      "sessionId": "SES-6bbcad9f",
+      "ipAddress": "10.20.23.28",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Priority",
+          "oldValue": "20",
+          "newValue": "10"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 09:34:00",
+      "product": "OPSS",
+      "module": "Accounts Payable",
+      "businessObjectType": "Invoice",
+      "qualifiedBusinessObject": "Financials/Payables/Invoices/Invoice",
+      "objectName": "Invoice",
+      "objectIdentifier": "INV-AP-778100",
+      "objectDisplayName": "Consulting Services April",
+      "eventType": "DELETE",
+      "userInternalName": "AP_SUPERVISOR",
+      "userDisplayName": "Maria Strand",
+      "description": "Deleted unmatched invoice draft.",
+      "descriptionInternal": "Invoice draft deleted before validation.",
+      "transactionId": "TXN-FA-000015",
+      "requestId": "REQ-20260521-0015",
+      "sessionId": "SES-bad744de",
+      "ipAddress": "10.20.24.36",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Invoice Status",
+          "oldValue": "Incomplete",
+          "newValue": "Deleted"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 09:41:00",
+      "product": "OPSS",
+      "module": "Receivables",
+      "businessObjectType": "Receipt",
+      "qualifiedBusinessObject": "Financials/Receivables/Receipts/Receipt",
+      "objectName": "Receipt",
+      "objectIdentifier": "RCPT-993001",
+      "objectDisplayName": "Customer Payment RCPT-993001",
+      "eventType": "REVERSE",
+      "userInternalName": "AR_MANAGER",
+      "userDisplayName": "Peter Holm",
+      "description": "Reversed customer receipt.",
+      "descriptionInternal": "Receipt.status changed from Applied to Reversed.",
+      "transactionId": "TXN-FA-000016",
+      "requestId": "REQ-20260521-0016",
+      "sessionId": "SES-8536a706",
+      "ipAddress": "10.20.25.11",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Receipt Status",
+          "oldValue": "Applied",
+          "newValue": "Reversed"
+        },
+        {
+          "name": "Reversal Reason",
+          "oldValue": null,
+          "newValue": "Duplicate Payment"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 09:48:00",
+      "product": "OPSS",
+      "module": "Supplier Portal",
+      "businessObjectType": "SupplierContact",
+      "qualifiedBusinessObject": "Procurement/Suppliers/SupplierContact",
+      "objectName": "Supplier Contact",
+      "objectIdentifier": "SUP-CON-55019",
+      "objectDisplayName": "Kari Lund",
+      "eventType": "CREATE",
+      "userInternalName": "SUPPLIER_ADMIN",
+      "userDisplayName": "Supplier Admin User",
+      "description": "Created supplier contact.",
+      "descriptionInternal": "SupplierContact created for supplier SUP-10045.",
+      "transactionId": "TXN-FA-000017",
+      "requestId": "REQ-20260521-0017",
+      "sessionId": "SES-d27ac8e4",
+      "ipAddress": "10.20.26.34",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Email",
+          "oldValue": null,
+          "newValue": "kari.lund@example.invalid"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 09:55:00",
+      "product": "OPSS",
+      "module": "Enterprise Scheduler",
+      "businessObjectType": "ScheduledProcess",
+      "qualifiedBusinessObject": "Tools/ScheduledProcesses/ScheduledProcess",
+      "objectName": "Scheduled Process",
+      "objectIdentifier": "ESS-801144",
+      "objectDisplayName": "Import Payables Invoices",
+      "eventType": "SUBMIT",
+      "userInternalName": "AP_INTEGRATION",
+      "userDisplayName": "AP Integration User",
+      "description": "Submitted scheduled process.",
+      "descriptionInternal": "ScheduledProcess Import Payables Invoices submitted with request ID 801144.",
+      "transactionId": "TXN-FA-000018",
+      "requestId": "REQ-20260521-0018",
+      "sessionId": "SES-224be8cb",
+      "ipAddress": "10.20.27.42",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Process Status",
+          "oldValue": null,
+          "newValue": "Submitted"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 10:02:00",
+      "product": "OPSS",
+      "module": "Setup and Maintenance",
+      "businessObjectType": "FlexfieldValue",
+      "qualifiedBusinessObject": "Setup/Flexfields/FlexfieldValue",
+      "objectName": "Flexfield Value",
+      "objectIdentifier": "DFF-COSTCENTER-9420",
+      "objectDisplayName": "Cost Center 9420",
+      "eventType": "UPDATE",
+      "userInternalName": "SETUP_USER",
+      "userDisplayName": "Freya Bakke",
+      "description": "Enabled flexfield value.",
+      "descriptionInternal": "FlexfieldValue.enabledFlag changed from N to Y.",
+      "transactionId": "TXN-FA-000019",
+      "requestId": "REQ-20260521-0019",
+      "sessionId": "SES-e70e7f4c",
+      "ipAddress": "10.20.28.23",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Enabled",
+          "oldValue": "N",
+          "newValue": "Y"
+        }
+      ],
+      "childObjects": []
+    },
+    {
+      "date": "2026-05-21 10:09:00",
+      "product": "OPSS",
+      "module": "Risk Management",
+      "businessObjectType": "AuditPolicy",
+      "qualifiedBusinessObject": "RiskManagement/Audit/AuditPolicy",
+      "objectName": "Audit Policy",
+      "objectIdentifier": "AUD-POL-FIN-001",
+      "objectDisplayName": "Financial Master Data Audit",
+      "eventType": "UPDATE",
+      "userInternalName": "RISK_ADMIN",
+      "userDisplayName": "Magnus Aas",
+      "description": "Updated audit policy retention period.",
+      "descriptionInternal": "AuditPolicy.retentionPeriod changed from 90 to 180.",
+      "transactionId": "TXN-FA-000020",
+      "requestId": "REQ-20260521-0020",
+      "sessionId": "SES-78307ffc",
+      "ipAddress": "10.20.29.40",
+      "impersonator": null,
+      "attributes": [
+        {
+          "name": "Retention Period",
+          "oldValue": "90",
+          "newValue": "180"
+        }
+      ],
+      "childObjects": []
+    }
+  ]
+}
