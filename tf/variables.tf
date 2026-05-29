@@ -185,3 +185,36 @@ variable "connect_harness_name" {
   description = "Name of the OCI Streaming Kafka Connect configuration."
   type        = string
 }
+
+variable "log_group_display_name" {
+  description = "Display name for the OCI Logging log group."
+  type        = string
+}
+
+variable "log_group_description" {
+  description = "Description for the OCI Logging log group."
+  type        = string
+  default     = "Fusion audit log group."
+}
+
+variable "custom_log_display_name" {
+  description = "Display name for the OCI custom log used for Fusion audit events."
+  type        = string
+}
+
+variable "custom_log_retention_duration" {
+  description = "Custom log retention duration in days. OCI supports 30-day increments up to 180."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = contains([30, 60, 90, 120, 150, 180], var.custom_log_retention_duration)
+    error_message = "custom_log_retention_duration must be one of 30, 60, 90, 120, 150, or 180."
+  }
+}
+
+variable "custom_log_is_enabled" {
+  description = "Whether the Fusion audit custom log is enabled."
+  type        = bool
+  default     = true
+}

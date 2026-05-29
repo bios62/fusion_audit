@@ -12,6 +12,7 @@ def main() -> int:
     logging.basicConfig(level=args.log_level)
 
     try:
+        from fusion_audit.oci_log_publisher import OciLogPublisher
         from fusion_audit.runtime import run_audit_export
         from fusion_audit.vault import VaultSecretProvider
 
@@ -22,7 +23,19 @@ def main() -> int:
             config_file=args.config_file,
             use_resource_principal=False,
         )
-        result = run_audit_export(config, secret_provider=secret_provider)
+        oci_log_publisher = None
+        if config.oci_log.enabled:
+            oci_log_publisher = OciLogPublisher(
+                config.oci_log,
+                profile=args.profile,
+                config_file=args.config_file,
+                use_resource_principal=False,
+            )
+        result = run_audit_export(
+            config,
+            secret_provider=secret_provider,
+            oci_log_publisher=oci_log_publisher,
+        )
     except ConfigurationError as exc:
         parser.error(str(exc))
     except Exception:
@@ -149,9 +162,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Kafka client id. Defaults to fusion-audit-cli.",
     )
     parser.add_argument(
+        "--oci-log-id",
+        default=None,
+        help="Optional OCI custom log OCID. When set, audit messages are also pushed to this custom log.",
+    )
+    parser.add_argument(
+        "--oci-log-source",
+        default="fusion_audit_cli",
+        help="OCI custom log entry source. Defaults to fusion_audit_cli.",
+    )
+    parser.add_argument(
+        "--oci-log-type",
+        default="fusion.audit",
+        help="OCI custom log entry type. Defaults to fusion.audit.",
+    )
+    parser.add_argument(
+        "--oci-log-subject",
+        default="fusion_erp_audit",
+        help="OCI custom log entry subject. Defaults to fusion_erp_audit.",
+    )
+    parser.add_argument(
+        "--oci-log-batch-size",
+        type=int,
+        default=100,
+        help="Number of audit records per OCI Logging ingestion request. Defaults to 100.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Read Vault secrets and Fusion audit records, but do not publish to Kafka.",
+        help="Read Vault secrets and Fusion audit records, but do not publish to Kafka or OCI Logging.",
     )
     parser.add_argument(
         "--log-level",
@@ -183,7 +222,7 @@ def _payload_from_args(args: argparse.Namespace) -> Dict[str, Any]:
         "client_id": args.kafka_client_id,
     }
 
-    return {
+    payload = {
         "lookback_hours": args.lookback_hours,
         "dry_run": args.dry_run,
         "vault": vault,
@@ -197,6 +236,16 @@ def _payload_from_args(args: argparse.Namespace) -> Dict[str, Any]:
         },
         "kafka": kafka,
     }
+    if args.oci_log_id:
+        payload["oci_log"] = {
+            "enabled": True,
+            "log_id": args.oci_log_id,
+            "source": args.oci_log_source,
+            "type": args.oci_log_type,
+            "subject": args.oci_log_subject,
+            "batch_size": args.oci_log_batch_size,
+        }
+    return payload
 
 
 if __name__ == "__main__":

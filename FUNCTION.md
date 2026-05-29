@@ -16,6 +16,20 @@ This file defines:
 
 The function runtime starts in `src/func.py` and calls the `handler` function.
 
+Sample `func.yaml`:
+
+```yaml
+schema_version: 20180708
+name: fusion_audit
+version: 0.0.1
+runtime: python
+build_image: fnproject/python:3.11-dev
+run_image: fnproject/python:3.11
+entrypoint: /python/bin/fdk /function/src/func.py handler
+memory: 512
+timeout: 300
+```
+
 ## 2. Add Python Dependencies
 
 Runtime dependencies are listed in `requirements.txt`.
@@ -53,7 +67,8 @@ The function expects these main input sections:
 - `vault`: OCI Vault secret OCIDs for Fusion and optional Kafka credentials
 - `fusion`: Fusion audit API query options
 - `kafka`: Kafka-compatible stream connection settings
-- `dry_run`: optional flag to test Vault and Fusion access without publishing
+- `oci_log`: optional OCI custom log ingestion settings
+- `dry_run`: optional flag to test Vault and Fusion access without publishing to Kafka or OCI Logging
 
 The function enforces a positive lookback window and caps `lookback_hours` at 744 hours, which is about one month.
 
@@ -165,13 +180,32 @@ For OCI Streaming Kafka compatibility, use:
 
 The Terraform output `kafka_bootstrap_servers` provides the bootstrap server value, and `stream_name` is the Kafka topic name.
 
-## 9. Add an Invocation Example
+## 9. Optionally Publish to OCI Custom Log
+
+OCI custom log publishing is implemented in `src/fusion_audit/oci_log_publisher.py`.
+
+When `oci_log.enabled` is `true`, the runtime sends the same audit messages to OCI Logging Ingestion after publishing them to Kafka. The publisher uses:
+
+- the custom log OCID from `oci_log.log_id`
+- `source`, `type`, and `subject` metadata for the custom log batch
+- deterministic UUIDs for each OCI log entry
+- UTC timestamps derived from the audit extraction time
+
+The deployed function needs a dynamic group policy similar to:
+
+```text
+Allow dynamic-group <dynamic-group-name> to use log-content in compartment <compartment-name>
+```
+
+The Terraform output `custom_log_id` provides the custom log OCID.
+
+## 10. Add an Invocation Example
 
 The sample invocation payload is stored in `examples/invoke.json`.
 
 Use it as the starting point for real function calls. Replace all placeholder OCIDs, Fusion values, Kafka values, and auth values before running the function.
 
-To test without sending Kafka messages, set:
+To test without sending Kafka or OCI Logging messages, set:
 
 ```json
 {
@@ -179,7 +213,7 @@ To test without sending Kafka messages, set:
 }
 ```
 
-## 10. Build and Deploy the Function
+## 11. Build and Deploy the Function
 
 From the project root:
 
@@ -194,7 +228,7 @@ Invoke with the sample payload:
 fn invoke <oci-functions-application-name> fusion_audit < examples/invoke.json
 ```
 
-## 11. Verify Locally
+## 12. Verify Locally
 
 Before deploying, run a syntax check:
 
@@ -208,7 +242,7 @@ Validate the example payload can be parsed:
 PYTHONPYCACHEPREFIX=/private/tmp/fusion_audit_pycache PYTHONPATH=src python3 -c 'import json; from fusion_audit.config import load_config; cfg = load_config(json.load(open("examples/invoke.json")), {}); print(cfg.lookback_hours, cfg.fusion.product, cfg.kafka.topic)'
 ```
 
-## 12. Test From Command Line
+## 13. Test From Command Line
 
 The function can also be tested from the command line through `src/func.py` or `fusion_audit.cli`.
 
@@ -217,6 +251,7 @@ The CLI uses `argparse` and accepts:
 - `--profile` for the OCI profile in `~/.oci/config`
 - `--vault-id` for the OCI Vault that contains the Fusion credential secrets
 - required Kafka parameters such as bootstrap servers, topic, username, and password or password secret name
+- optional `--oci-log-id` to also push audit records to an OCI custom log
 
 Example:
 
@@ -229,15 +264,18 @@ PYTHONPATH=src python3 -m fusion_audit.cli \
   --kafka-bootstrap-servers streaming.eu-frankfurt-1.oci.oraclecloud.com:9092 \
   --kafka-topic fusion-audit-trail \
   --kafka-username "tenancyName/domain/username/ocid1.streampool.oc1..example" \
-  --kafka-password-secret-name fusion-audit-kafka-auth-token
+  --kafka-password-secret-name fusion-audit-kafka-auth-token \
+  --oci-log-id ocid1.log.oc1..example
 ```
 
-## 13. Test With the Mock Fusion API
+## 14. Test With the Mock Fusion API
 
-The project includes a synthetic Fusion audit fixture and a mock Fusion API server:
+The project includes a synthetic Fusion audit template fixture and a mock Fusion API server:
 
 - `examples/fusion_audit_records.json`
 - `tools/mock_fusion_api.py`
+
+Each mock server start generates a random 15 to 50 record audit sequence from the templates. The generated records are dated yesterday, start just after midnight, and keep ascending timestamps.
 
 Start the mock server:
 
@@ -251,17 +289,19 @@ The server exposes the same path used by the function:
 /fscmRestApi/fndAuditRESTService/audittrail/getaudithistory
 ```
 
-For CLI testing, store `http://127.0.0.1:8000` as the Fusion base URL secret in the Vault used by `--vault-id`, then run the command-line function with the normal Kafka arguments.
+For CLI testing, store `http://127.0.0.1:8000` as the Fusion base URL secret in the Vault used by `--vault-id`, then run the command-line function with the normal Kafka arguments. Add `--oci-log-id` to push the same synthetic audit messages into an OCI custom log.
 
-## 14. Runtime Requirements
+## 15. Runtime Requirements
 
 The deployed function needs:
 
 - OCI resource principal permissions to read Vault secret bundles
+- OCI resource principal permissions to use log content when custom log publishing is enabled
 - Network egress to the Fusion ERP environment
 - Network egress to the Kafka or OCI Streaming bootstrap endpoint
 - Valid Fusion audit API credentials
 - Valid Kafka credentials
 - An existing Kafka topic or OCI Streaming stream
+- An existing OCI custom log when `oci_log.enabled` is true
 
-The Terraform code in `tf/` creates the Vault, secrets, stream pool, stream, and connect harness used by this function.
+The Terraform code in `tf/` creates the Vault, secrets, stream pool, stream, connect harness, log group, and custom log used by this function.

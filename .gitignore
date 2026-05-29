@@ -1,0 +1,98 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python build and packaging artifacts
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Python test, coverage, lint, and type-checking artifacts
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+.hypothesis/
+
+# Python local runtime files
+*.log
+*.pid
+*.seed
+
+# Environment and local secret files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Terraform local directories
+**/.terraform/*
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Terraform variable files with secrets
+*.tfvars
+*.tfvars.json
+
+# Terraform plan and crash files
+*.tfplan
+tfplan
+plan.out
+crash.log
+crash.*.log
+
+# Terraform override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform CLI config
+.terraformrc
+terraform.rc
+
+# OCI Functions / Fn local metadata
+.fn/
+
+# Local scratch directory
+temp/

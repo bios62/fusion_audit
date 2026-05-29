@@ -57,3 +57,13 @@ output "connect_harness_id" {
   description = "OCID of the Kafka Connect configuration."
   value       = oci_streaming_connect_harness.fusion_audit.id
 }
+
+output "custom_log_group_id" {
+  description = "OCID of the OCI Logging log group for Fusion audit custom logs."
+  value       = oci_logging_log_group.fusion_audit.id
+}
+
+output "custom_log_id" {
+  description = "OCID of the OCI custom log for Fusion audit records."
+  value       = oci_logging_log.fusion_audit_custom.id
+}

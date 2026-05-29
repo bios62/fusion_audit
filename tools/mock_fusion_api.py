@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import base64
+import copy
 import json
 import logging
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -14,6 +16,8 @@ from urllib.parse import parse_qs, urlparse
 AUDIT_HISTORY_PATH = "/fscmRestApi/fndAuditRESTService/audittrail/getaudithistory"
 DEFAULT_FIXTURE = Path(__file__).resolve().parents[1] / "examples" / "fusion_audit_records.json"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+DEFAULT_MIN_RECORDS = 15
+DEFAULT_MAX_RECORDS = 50
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +113,25 @@ def main() -> int:
     parser.add_argument(
         "--fixture",
         default=str(DEFAULT_FIXTURE),
-        help="Path to the synthetic audit fixture JSON file.",
+        help="Path to the synthetic audit template JSON file.",
+    )
+    parser.add_argument(
+        "--min-records",
+        type=int,
+        default=DEFAULT_MIN_RECORDS,
+        help=f"Minimum generated audit records per server run. Defaults to {DEFAULT_MIN_RECORDS}.",
+    )
+    parser.add_argument(
+        "--max-records",
+        type=int,
+        default=DEFAULT_MAX_RECORDS,
+        help=f"Maximum generated audit records per server run. Defaults to {DEFAULT_MAX_RECORDS}.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Optional random seed for repeatable generated audit data.",
     )
     parser.add_argument("--username", default=None, help="Optional Basic Auth username to require.")
     parser.add_argument("--password", default=None, help="Optional Basic Auth password to require.")
@@ -127,17 +149,27 @@ def main() -> int:
     args = parser.parse_args()
     if (args.username is None) != (args.password is None):
         parser.error("--username and --password must be provided together.")
+    if args.min_records <= 0 or args.max_records <= 0:
+        parser.error("--min-records and --max-records must be greater than zero.")
+    if args.min_records > args.max_records:
+        parser.error("--min-records cannot be greater than --max-records.")
 
     logging.basicConfig(level=args.log_level, format="%(levelname)s %(message)s")
 
-    records = load_audit_records(Path(args.fixture))
+    fixture_path = Path(args.fixture)
+    randomizer = random.Random(args.seed)
+    templates = load_audit_records(fixture_path)
+    records = generate_audit_records(templates, args.min_records, args.max_records, randomizer)
     server = ThreadingHTTPServer((args.host, args.port), MockFusionAuditHandler)
     server.audit_records = records
     server.enforce_date_filter = args.enforce_date_filter
     server.username = args.username
     server.password = args.password
 
-    logger.info("Loaded %s synthetic Fusion audit records from %s", len(records), args.fixture)
+    if args.seed is not None:
+        logger.info("Using random seed %s", args.seed)
+    logger.info("Using synthetic audit template file %s", fixture_path)
+    logger.info("Generated %s synthetic Fusion audit records from %s templates", len(records), len(templates))
     logger.info("Mock Fusion API listening on http://%s:%s", args.host, args.port)
     logger.info("Audit endpoint: %s", AUDIT_HISTORY_PATH)
 
@@ -163,6 +195,47 @@ def load_audit_records(path: Path) -> List[Dict[str, Any]]:
     if not isinstance(records, list):
         raise ValueError("Fixture auditData value must be an array.")
     return records
+
+
+def generate_audit_records(
+    templates: List[Dict[str, Any]],
+    min_records: int,
+    max_records: int,
+    randomizer: random.Random,
+) -> List[Dict[str, Any]]:
+    if not templates:
+        raise ValueError("Fixture must contain at least one audit record template.")
+
+    count = randomizer.randint(min_records, max_records)
+    start_time = datetime.combine(
+        datetime.now().date() - timedelta(days=1),
+        datetime.min.time(),
+    ) + timedelta(minutes=randomizer.randint(3, 17), seconds=randomizer.randint(0, 45))
+
+    records = []
+    current_time = start_time
+    for index in range(count):
+        if index > 0:
+            current_time += timedelta(minutes=randomizer.randint(2, 24), seconds=randomizer.randint(0, 59))
+
+        template = copy.deepcopy(randomizer.choice(templates))
+        sequence = index + 1
+        template["date"] = current_time.strftime(DATE_FORMAT)
+        template["transactionId"] = f"TXN-MOCK-{current_time.strftime('%Y%m%d')}-{sequence:06d}"
+        template["requestId"] = f"REQ-{current_time.strftime('%Y%m%d')}-{sequence:06d}"
+        template["sessionId"] = f"SES-{randomizer.getrandbits(32):08x}"
+        template["objectIdentifier"] = _sequenced_identifier(template.get("objectIdentifier"), sequence)
+        records.append(template)
+
+    return records
+
+
+def _sequenced_identifier(value: Optional[Any], sequence: int) -> str:
+    if not value:
+        return f"MOCK-{sequence:06d}"
+    text = str(value)
+    prefix = text.rsplit("-", 1)[0] if "-" in text else text
+    return f"{prefix}-{sequence:06d}"
 
 
 def filter_records(records: List[Dict[str, Any]], params: Dict[str, Any], enforce_date_filter: bool) -> List[Dict[str, Any]]:

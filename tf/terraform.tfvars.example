@@ -38,3 +38,9 @@ stream_partitions         = 1
 stream_retention_in_hours = 24
 
 connect_harness_name = "fusion-audit-connect"
+
+log_group_display_name        = "fusion-audit-log-group"
+log_group_description         = "Fusion audit custom log group."
+custom_log_display_name       = "fusion-audit-custom-log"
+custom_log_retention_duration = 30
+custom_log_is_enabled         = true

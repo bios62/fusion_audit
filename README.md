@@ -45,6 +45,7 @@ Terraform code lives in `tf/` and currently creates:
 - OCI Streaming stream pool with Kafka compatibility settings
 - OCI Streaming stream used as the Kafka topic for Fusion audit trail events
 - OCI Streaming Kafka Connect configuration
+- OCI Logging log group and custom log for Fusion audit events
 
 The provider and resource inputs are driven by Terraform variables. Put real values in:
 
@@ -64,7 +65,7 @@ terraform plan
 terraform apply
 ```
 
-Kafka-compatible producers and connectors should use the `kafka_bootstrap_servers` output and the `stream_name` output as the Kafka topic name.
+Kafka-compatible producers and connectors should use the `kafka_bootstrap_servers` output and the `stream_name` output as the Kafka topic name. The function can also push each audit event to the `custom_log_id` output.
 
 ## OCI Function
 
@@ -76,6 +77,7 @@ For a step-by-step walkthrough of how the function is built, see [FUNCTION.md](F
 2. Uses the OCI Python SDK resource principal signer to read Fusion and optional Kafka secrets from OCI Vault.
 3. Calls Fusion ERP audit history for the last `lookback_hours`.
 4. Publishes each audit record as one Kafka message.
+5. Optionally pushes each audit record to an OCI Logging custom log.
 
 The function expects this high-level payload shape:
 
@@ -102,6 +104,14 @@ The function expects this high-level payload shape:
     "security_protocol": "SASL_SSL",
     "sasl_mechanism": "PLAIN",
     "username": "tenancyName/domain/username/streamPoolId"
+  },
+  "oci_log": {
+    "enabled": true,
+    "log_id": "ocid1.log.oc1..",
+    "source": "fusion_audit_function",
+    "type": "fusion.audit",
+    "subject": "fusion_erp_audit",
+    "batch_size": 100
   }
 }
 ```
@@ -136,13 +146,21 @@ The function publishes messages with this structure:
 }
 ```
 
+When `oci_log.enabled` is `true`, the same JSON message is pushed into the configured OCI custom log using the Logging Ingestion API.
+
 The function needs an OCI dynamic group and a policy that lets it read the Vault secret bundles:
 
 ```text
 Allow dynamic-group <dynamic-group-name> to read secret-bundles in compartment <compartment-name>
 ```
 
-It also needs network egress to the Fusion environment and to the Kafka bootstrap endpoint. Set `dry_run` to `true` to test Vault and Fusion access without publishing to Kafka.
+If OCI custom log publishing is enabled, it also needs permission to use log content:
+
+```text
+Allow dynamic-group <dynamic-group-name> to use log-content in compartment <compartment-name>
+```
+
+It also needs network egress to the Fusion environment and to the Kafka bootstrap endpoint. Set `dry_run` to `true` to test Vault and Fusion access without publishing to Kafka or OCI Logging.
 
 ## Run From Command Line
 
@@ -167,7 +185,8 @@ PYTHONPATH=src python3 -m fusion_audit.cli \
   --kafka-bootstrap-servers streaming.eu-frankfurt-1.oci.oraclecloud.com:9092 \
   --kafka-topic fusion-audit-trail \
   --kafka-username "tenancyName/domain/username/ocid1.streampool.oc1..example" \
-  --kafka-password-secret-name fusion-audit-kafka-auth-token
+  --kafka-password-secret-name fusion-audit-kafka-auth-token \
+  --oci-log-id ocid1.log.oc1..example
 ```
 
 The command reads OCI credentials from `~/.oci/config` using `--profile`. Use `--config-file` if the config file is somewhere else.
@@ -195,6 +214,21 @@ Kafka requires:
 
 Prefer `--kafka-password-secret-name` so the Kafka password or OCI auth token is read from Vault instead of being written into shell history.
 
+To also push records to an OCI custom log, pass:
+
+```bash
+--oci-log-id <custom-log-ocid>
+```
+
+Optional custom log settings:
+
+```bash
+--oci-log-source fusion_audit_cli
+--oci-log-type fusion.audit
+--oci-log-subject fusion_erp_audit
+--oci-log-batch-size 100
+```
+
 To see all options:
 
 ```bash
@@ -209,17 +243,30 @@ python3 src/func.py --help
 
 ## Mock Fusion API
 
-For local and integration testing, this project includes a mock Fusion audit API server and a synthetic audit fixture.
+For local and integration testing, this project includes a mock Fusion audit API server and a synthetic audit template fixture.
 
 Files:
 
-- `examples/fusion_audit_records.json`: 20 synthetic Fusion audit records
-- `tools/mock_fusion_api.py`: small Python HTTP server that returns the synthetic records
+- `examples/fusion_audit_records.json`: synthetic Fusion audit record templates
+- `tools/mock_fusion_api.py`: small Python HTTP server that generates and returns synthetic records
+
+Each server start generates a random sequence of 15 to 50 audit records. All generated records are dated yesterday, start slightly after midnight, and progress in ascending time order so the audit trail looks more natural.
 
 Start the mock server:
 
 ```bash
 python3 tools/mock_fusion_api.py --host 127.0.0.1 --port 8000
+```
+
+Control the generated record count or make a run repeatable:
+
+```bash
+python3 tools/mock_fusion_api.py \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --min-records 25 \
+  --max-records 40 \
+  --seed 12345
 ```
 
 The mock implements the same audit endpoint used by the function:
@@ -240,8 +287,6 @@ Manual audit request:
 curl -X POST http://127.0.0.1:8000/fscmRestApi/fndAuditRESTService/audittrail/getaudithistory \
   -H "Content-Type: application/json" \
   -d '{
-    "fromDate": "2026-05-21 00:00:00",
-    "toDate": "2026-05-21 23:59:59",
     "product": "OPSS",
     "eventType": "all",
     "pageNumber": 1,
@@ -279,7 +324,7 @@ PYTHONPATH=src python3 -m fusion_audit.cli \
   --kafka-password-secret-name fusion-audit-kafka-auth-token
 ```
 
-By default, the mock server ignores the date window so the fixture is repeatable. Add `--enforce-date-filter` if you want it to filter records by `fromDate` and `toDate`.
+By default, the mock server ignores the date window so generated data is easy to query. Add `--enforce-date-filter` if you want it to filter records by `fromDate` and `toDate`; use a date window that covers yesterday.
 
 If the function is deployed in OCI, `127.0.0.1` points to the function container, not your laptop. Use a network-reachable mock host when testing a deployed function.
 
@@ -306,8 +351,13 @@ Full license text: [Oracle Universal Permissive License v1.0](https://www.oracle
 - [OCI Terraform resource: `oci_streaming_stream`](https://docs.oracle.com/en-us/iaas/tools/terraform-provider-oci/latest/docs/r/streaming_stream.html)
 - [Using OCI Streaming with Apache Kafka](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/kafkacompatibility.htm)
 - [Kafka Python Client and Streaming Quickstart](https://docs.oracle.com/en-us/iaas/Content/Streaming/Tasks/streaming-kafka-python-client-quickstart.htm)
+- [OCI Terraform resource: `oci_logging_log_group`](https://docs.oracle.com/en-us/iaas/tools/terraform-provider-oci/latest/docs/r/logging_log_group.html)
+- [OCI Terraform resource: `oci_logging_log`](https://docs.oracle.com/en-us/iaas/tools/terraform-provider-oci/latest/docs/r/logging_log.html)
 - [OCI Functions resource principals](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/functionsaccessingociresources.htm)
 - [OCI Functions supported language versions](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/languagessupportedbyfunctions.htm)
 - [Getting an OCI Vault secret's contents](https://docs.oracle.com/en-us/iaas/Content/secret-management/Tasks/get-secrets-contents.htm)
 - [Fusion Applications audit report REST endpoint](https://docs.oracle.com/en/cloud/saas/applications-common/26b/farca/op-fscmrestapi-fndauditrestservice-audittrail-getaudithistory-post.html)
 - [OCI Terraform resource: `oci_streaming_connect_harness`](https://docs.oracle.com/en-us/iaas/tools/terraform-provider-oci/6.14.0/docs/r/streaming_connect_harness.html)
+- [OCI Logging custom logs](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/custom_logs.htm)
+- [Ingesting OCI custom logs with PutLogs](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/using_the_api_customlogs.htm)
+- [OCI Python SDK Logging Ingestion client](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/loggingingestion/client/oci.loggingingestion.LoggingClient.html)

@@ -7,12 +7,17 @@ from typing import Dict, Iterable, Optional, Tuple
 from fusion_audit.config import AppConfig, KafkaConfig
 from fusion_audit.fusion import FusionAuditClient, FusionCredentials
 from fusion_audit.kafka_publisher import KafkaPublisher
+from fusion_audit.oci_log_publisher import OciLogPublisher
 from fusion_audit.vault import VaultSecretProvider
 
 logger = logging.getLogger(__name__)
 
 
-def run_audit_export(config: AppConfig, secret_provider: Optional[VaultSecretProvider] = None) -> Dict:
+def run_audit_export(
+    config: AppConfig,
+    secret_provider: Optional[VaultSecretProvider] = None,
+    oci_log_publisher: Optional[OciLogPublisher] = None,
+) -> Dict:
     secret_provider = secret_provider or VaultSecretProvider()
     secrets = secret_provider.get_many(config.vault.secret_references())
     kafka_config = _with_secret_credentials(config.kafka, secrets)
@@ -30,10 +35,13 @@ def run_audit_export(config: AppConfig, secret_provider: Optional[VaultSecretPro
     )
 
     publisher = None if config.dry_run else KafkaPublisher(kafka_config)
+    if not config.dry_run and config.oci_log.enabled:
+        oci_log_publisher = oci_log_publisher or OciLogPublisher(config.oci_log)
 
     pages_read = 0
     records_read = 0
     messages_published = 0
+    oci_log_messages_published = 0
 
     for page in fusion_client.iter_audit_pages(from_dt=from_dt, to_dt=to_dt):
         pages_read += 1
@@ -45,6 +53,8 @@ def run_audit_export(config: AppConfig, secret_provider: Optional[VaultSecretPro
             continue
 
         messages_published += publisher.publish(messages)
+        if oci_log_publisher:
+            oci_log_messages_published += oci_log_publisher.publish(messages)
 
     return {
         "status": "success",
@@ -62,6 +72,12 @@ def run_audit_export(config: AppConfig, secret_provider: Optional[VaultSecretPro
         "kafka": {
             "bootstrap_servers": kafka_config.bootstrap_servers,
             "topic": kafka_config.topic,
+            "messages_published": messages_published,
+        },
+        "oci_log": {
+            "enabled": config.oci_log.enabled,
+            "log_id": config.oci_log.log_id,
+            "messages_published": oci_log_messages_published,
         },
         "pages_read": pages_read,
         "records_read": records_read,

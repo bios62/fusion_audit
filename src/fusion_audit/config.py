@@ -100,10 +100,21 @@ class KafkaConfig:
 
 
 @dataclass(frozen=True)
+class OciLogConfig:
+    enabled: bool = False
+    log_id: Optional[str] = None
+    source: str = "fusion_audit_function"
+    log_type: str = "fusion.audit"
+    subject: str = "fusion_erp_audit"
+    batch_size: int = 100
+
+
+@dataclass(frozen=True)
 class AppConfig:
     vault: VaultSecretConfig
     fusion: FusionAuditConfig
     kafka: KafkaConfig
+    oci_log: OciLogConfig
     lookback_hours: float
     dry_run: bool = False
 
@@ -114,6 +125,7 @@ def load_config(payload: Mapping[str, Any], function_config: Mapping[str, Any]) 
     vault_data = _required_mapping(merged, "vault")
     fusion_data = _required_mapping(merged, "fusion")
     kafka_data = _required_mapping(merged, "kafka")
+    oci_log_data = _mapping(merged, "oci_log", {})
 
     lookback_hours = _number(merged, "lookback_hours", default=1)
     if lookback_hours <= 0:
@@ -195,10 +207,23 @@ def load_config(payload: Mapping[str, Any], function_config: Mapping[str, Any]) 
                 "and kafka.password or vault.kafka_password_secret_id."
             )
 
+    oci_log_id = _optional_str(oci_log_data, "log_id")
+    oci_log = OciLogConfig(
+        enabled=_bool(oci_log_data, "enabled", bool(oci_log_id)),
+        log_id=oci_log_id,
+        source=_str(oci_log_data, "source", "fusion_audit_function"),
+        log_type=_str(oci_log_data, "type", "fusion.audit"),
+        subject=_str(oci_log_data, "subject", "fusion_erp_audit"),
+        batch_size=_positive_int(oci_log_data, "batch_size", 100),
+    )
+    if oci_log.enabled and not oci_log.log_id:
+        raise ConfigurationError("oci_log.log_id is required when oci_log.enabled is true.")
+
     return AppConfig(
         vault=vault,
         fusion=fusion,
         kafka=kafka,
+        oci_log=oci_log,
         lookback_hours=lookback_hours,
         dry_run=_bool(merged, "dry_run", False),
     )
