@@ -1,6 +1,6 @@
 # fusion_audit
 
-OCI Function project for extracting audit trail data from Fusion ERP and publishing it to a Kafka stream.
+OCI Function project for extracting audit trail data from Fusion ERP and publishing it to either a Kafka stream or an OCI Logging custom log.
 
 Author: Inge Os, 2026
 
@@ -28,12 +28,12 @@ fusion_audit/
 
 ## Initial Scope
 
-The first implementation target is a function that can:
+The first implementation scope is a function that can:
 
 1. Connect to Fusion ERP audit trail APIs or exports.
 2. Extract audit trail records.
-3. Transform records into Kafka-ready messages.
-4. Publish messages to a Kafka stream.
+3. Transform records into target-ready JSON messages.
+4. Publish messages to either Kafka or OCI Logging custom logs.
 
 ## Terraform
 
@@ -65,7 +65,7 @@ terraform plan
 terraform apply
 ```
 
-Kafka-compatible producers and connectors should use the `kafka_bootstrap_servers` output and the `stream_name` output as the Kafka topic name. The function can also push each audit event to the `custom_log_id` output.
+Kafka-compatible producers and connectors should use the `kafka_bootstrap_servers` output and the `stream_name` output as the Kafka topic name. When `target` is `oci_log`, use the `custom_log_id` output as the custom log OCID.
 
 ## OCI Function
 
@@ -76,13 +76,15 @@ For a step-by-step walkthrough of how the function is built, see [FUNCTION.md](F
 1. Reads invocation parameters from the request payload or `FUSION_AUDIT_CONFIG_JSON`.
 2. Uses the OCI Python SDK resource principal signer to read Fusion and optional Kafka secrets from OCI Vault.
 3. Calls Fusion ERP audit history for the last `lookback_hours`.
-4. Publishes each audit record as one Kafka message.
-5. Optionally pushes each audit record to an OCI Logging custom log.
+4. Publishes each audit record to the selected target: Kafka or OCI Logging custom logs.
 
-The function expects this high-level payload shape:
+The function expects one JSON payload with a top-level `target` parameter. Set `target` to `kafka` or `oci_log`; only the selected target block is required.
+
+Kafka target example:
 
 ```json
 {
+  "target": "kafka",
   "lookback_hours": 4,
   "dry_run": false,
   "vault": {
@@ -104,9 +106,30 @@ The function expects this high-level payload shape:
     "security_protocol": "SASL_SSL",
     "sasl_mechanism": "PLAIN",
     "username": "tenancyName/domain/username/streamPoolId"
+  }
+}
+```
+
+OCI custom log target example:
+
+```json
+{
+  "target": "oci_log",
+  "lookback_hours": 4,
+  "dry_run": false,
+  "vault": {
+    "fusion_base_url_secret_id": "ocid1.vaultsecret.oc1..",
+    "fusion_username_secret_id": "ocid1.vaultsecret.oc1..",
+    "fusion_password_secret_id": "ocid1.vaultsecret.oc1.."
+  },
+  "fusion": {
+    "product": "OPSS",
+    "event_type": "all",
+    "request_mode": "body",
+    "page_size": 500,
+    "max_pages": 100
   },
   "oci_log": {
-    "enabled": true,
     "log_id": "ocid1.log.oc1..",
     "source": "fusion_audit_function",
     "type": "fusion.audit",
@@ -146,7 +169,7 @@ The function publishes messages with this structure:
 }
 ```
 
-When `oci_log.enabled` is `true`, the same JSON message is pushed into the configured OCI custom log using the Logging Ingestion API.
+When `target` is `oci_log`, the JSON message is pushed into the configured OCI custom log using the Logging Ingestion API. Kafka settings are not required for that target.
 
 The function needs an OCI dynamic group and a policy that lets it read the Vault secret bundles:
 
@@ -154,13 +177,13 @@ The function needs an OCI dynamic group and a policy that lets it read the Vault
 Allow dynamic-group <dynamic-group-name> to read secret-bundles in compartment <compartment-name>
 ```
 
-If OCI custom log publishing is enabled, it also needs permission to use log content:
+If `target` is `oci_log`, it also needs permission to use log content:
 
 ```text
 Allow dynamic-group <dynamic-group-name> to use log-content in compartment <compartment-name>
 ```
 
-It also needs network egress to the Fusion environment and to the Kafka bootstrap endpoint. Set `dry_run` to `true` to test Vault and Fusion access without publishing to Kafka or OCI Logging.
+It also needs network egress to the Fusion environment and to the selected target endpoint. Set `dry_run` to `true` to test Vault and Fusion access without publishing to Kafka or OCI Logging.
 
 ## Run From Command Line
 
@@ -174,10 +197,11 @@ source .venv/bin/activate
 python3 -m pip install -r requirements.txt
 ```
 
-Run the command with an OCI profile, the Vault OCID that contains the Fusion credential secrets, and the required Kafka stream settings:
+Run with `--target kafka` to publish to Kafka or OCI Streaming Kafka compatibility:
 
 ```bash
 PYTHONPATH=src python3 -m fusion_audit.cli \
+  --target kafka \
   --profile DEFAULT \
   --vault-id ocid1.vault.oc1..example \
   --lookback-hours 4 \
@@ -185,7 +209,18 @@ PYTHONPATH=src python3 -m fusion_audit.cli \
   --kafka-bootstrap-servers streaming.eu-frankfurt-1.oci.oraclecloud.com:9092 \
   --kafka-topic fusion-audit-trail \
   --kafka-username "tenancyName/domain/username/ocid1.streampool.oc1..example" \
-  --kafka-password-secret-name fusion-audit-kafka-auth-token \
+  --kafka-password-secret-name fusion-audit-kafka-auth-token
+```
+
+Run with `--target oci-log` to publish to OCI Logging custom logs:
+
+```bash
+PYTHONPATH=src python3 -m fusion_audit.cli \
+  --target oci-log \
+  --profile DEFAULT \
+  --vault-id ocid1.vault.oc1..example \
+  --lookback-hours 4 \
+  --fusion-product OPSS \
   --oci-log-id ocid1.log.oc1..example
 ```
 
@@ -205,7 +240,7 @@ Override them when needed:
 --fusion-password-secret-name <secret-name>
 ```
 
-Kafka requires:
+Kafka target arguments:
 
 - `--kafka-bootstrap-servers`
 - `--kafka-topic`
@@ -214,20 +249,13 @@ Kafka requires:
 
 Prefer `--kafka-password-secret-name` so the Kafka password or OCI auth token is read from Vault instead of being written into shell history.
 
-To also push records to an OCI custom log, pass:
+OCI custom log target arguments:
 
-```bash
---oci-log-id <custom-log-ocid>
-```
-
-Optional custom log settings:
-
-```bash
---oci-log-source fusion_audit_cli
---oci-log-type fusion.audit
---oci-log-subject fusion_erp_audit
---oci-log-batch-size 100
-```
+- `--oci-log-id`
+- optional `--oci-log-source`
+- optional `--oci-log-type`
+- optional `--oci-log-subject`
+- optional `--oci-log-batch-size`
 
 To see all options:
 
@@ -310,10 +338,11 @@ For command-line function testing, store these values in the Vault used by `--va
 - `fusion-audit-api-username`: the mock username, or any value if auth is not enabled
 - `fusion-audit-api-password`: the mock password, or any value if auth is not enabled
 
-Then run the CLI with the same Kafka arguments as normal:
+Then run the CLI with the selected target arguments. For Kafka:
 
 ```bash
 PYTHONPATH=src python3 -m fusion_audit.cli \
+  --target kafka \
   --profile DEFAULT \
   --vault-id ocid1.vault.oc1..example \
   --lookback-hours 4 \

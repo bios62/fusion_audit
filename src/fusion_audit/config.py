@@ -5,6 +5,9 @@ from typing import Any, Dict, Mapping, Optional
 
 
 MAX_LOOKBACK_HOURS = 24 * 31
+TARGET_KAFKA = "kafka"
+TARGET_OCI_LOG = "oci_log"
+TARGETS = {TARGET_KAFKA, TARGET_OCI_LOG}
 
 
 class ConfigurationError(ValueError):
@@ -101,8 +104,7 @@ class KafkaConfig:
 
 @dataclass(frozen=True)
 class OciLogConfig:
-    enabled: bool = False
-    log_id: Optional[str] = None
+    log_id: str
     source: str = "fusion_audit_function"
     log_type: str = "fusion.audit"
     subject: str = "fusion_erp_audit"
@@ -113,8 +115,9 @@ class OciLogConfig:
 class AppConfig:
     vault: VaultSecretConfig
     fusion: FusionAuditConfig
-    kafka: KafkaConfig
-    oci_log: OciLogConfig
+    target: str
+    kafka: Optional[KafkaConfig]
+    oci_log: Optional[OciLogConfig]
     lookback_hours: float
     dry_run: bool = False
 
@@ -124,8 +127,7 @@ def load_config(payload: Mapping[str, Any], function_config: Mapping[str, Any]) 
 
     vault_data = _required_mapping(merged, "vault")
     fusion_data = _required_mapping(merged, "fusion")
-    kafka_data = _required_mapping(merged, "kafka")
-    oci_log_data = _mapping(merged, "oci_log", {})
+    target = _target(merged)
 
     lookback_hours = _number(merged, "lookback_hours", default=1)
     if lookback_hours <= 0:
@@ -182,6 +184,30 @@ def load_config(payload: Mapping[str, Any], function_config: Mapping[str, Any]) 
         read_timeout_seconds=_positive_int(fusion_data, "read_timeout_seconds", 60),
     )
 
+    kafka = _load_kafka_config(merged, vault) if target == TARGET_KAFKA else None
+    oci_log = _load_oci_log_config(merged) if target == TARGET_OCI_LOG else None
+
+    return AppConfig(
+        vault=vault,
+        fusion=fusion,
+        target=target,
+        kafka=kafka,
+        oci_log=oci_log,
+        lookback_hours=lookback_hours,
+        dry_run=_bool(merged, "dry_run", False),
+    )
+
+
+def _target(mapping: Mapping[str, Any]) -> str:
+    target = _str(mapping, "target", TARGET_KAFKA).strip().lower().replace("-", "_")
+    if target not in TARGETS:
+        allowed_values = ", ".join(sorted(TARGETS))
+        raise ConfigurationError(f"target must be one of: {allowed_values}.")
+    return target
+
+
+def _load_kafka_config(mapping: Mapping[str, Any], vault: VaultSecretConfig) -> KafkaConfig:
+    kafka_data = _required_mapping(mapping, "kafka")
     kafka = KafkaConfig(
         bootstrap_servers=_required_str(kafka_data, "bootstrap_servers"),
         topic=_required_str(kafka_data, "topic"),
@@ -203,29 +229,20 @@ def load_config(payload: Mapping[str, Any], function_config: Mapping[str, Any]) 
         has_password = bool(kafka.password or vault.kafka_password_secret_id or vault.kafka_password_secret_name)
         if not has_username or not has_password:
             raise ConfigurationError(
-                "Kafka SASL configuration requires kafka.username or vault.kafka_username_secret_id, "
-                "and kafka.password or vault.kafka_password_secret_id."
+                "Kafka SASL configuration requires kafka.username or vault.kafka_username_secret_id/name, "
+                "and kafka.password or vault.kafka_password_secret_id/name."
             )
+    return kafka
 
-    oci_log_id = _optional_str(oci_log_data, "log_id")
-    oci_log = OciLogConfig(
-        enabled=_bool(oci_log_data, "enabled", bool(oci_log_id)),
-        log_id=oci_log_id,
+
+def _load_oci_log_config(mapping: Mapping[str, Any]) -> OciLogConfig:
+    oci_log_data = _required_mapping(mapping, "oci_log")
+    return OciLogConfig(
+        log_id=_required_str(oci_log_data, "log_id"),
         source=_str(oci_log_data, "source", "fusion_audit_function"),
         log_type=_str(oci_log_data, "type", "fusion.audit"),
         subject=_str(oci_log_data, "subject", "fusion_erp_audit"),
         batch_size=_positive_int(oci_log_data, "batch_size", 100),
-    )
-    if oci_log.enabled and not oci_log.log_id:
-        raise ConfigurationError("oci_log.log_id is required when oci_log.enabled is true.")
-
-    return AppConfig(
-        vault=vault,
-        fusion=fusion,
-        kafka=kafka,
-        oci_log=oci_log,
-        lookback_hours=lookback_hours,
-        dry_run=_bool(merged, "dry_run", False),
     )
 
 

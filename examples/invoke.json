@@ -1,4 +1,5 @@
 {
+  "target": "kafka",
   "lookback_hours": 4,
   "dry_run": false,
   "vault": {
@@ -27,13 +28,5 @@
     "sasl_mechanism": "PLAIN",
     "username": "tenancyName/domain/username/ocid1.streampool.oc1..example",
     "client_id": "fusion-audit-function"
-  },
-  "oci_log": {
-    "enabled": true,
-    "log_id": "ocid1.log.oc1..fusion-audit-custom-log",
-    "source": "fusion_audit_function",
-    "type": "fusion.audit",
-    "subject": "fusion_erp_audit",
-    "batch_size": 100
   }
 }

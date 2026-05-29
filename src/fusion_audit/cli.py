@@ -3,7 +3,7 @@ import json
 import logging
 from typing import Any, Dict
 
-from fusion_audit.config import ConfigurationError, load_config
+from fusion_audit.config import ConfigurationError, TARGET_KAFKA, TARGET_OCI_LOG, load_config
 
 
 def main() -> int:
@@ -12,19 +12,21 @@ def main() -> int:
     logging.basicConfig(level=args.log_level)
 
     try:
-        from fusion_audit.oci_log_publisher import OciLogPublisher
+        payload = _payload_from_args(args)
+        config = load_config(payload, {})
+
         from fusion_audit.runtime import run_audit_export
         from fusion_audit.vault import VaultSecretProvider
 
-        payload = _payload_from_args(args)
-        config = load_config(payload, {})
         secret_provider = VaultSecretProvider(
             profile=args.profile,
             config_file=args.config_file,
             use_resource_principal=False,
         )
         oci_log_publisher = None
-        if config.oci_log.enabled:
+        if config.target == TARGET_OCI_LOG:
+            from fusion_audit.oci_log_publisher import OciLogPublisher
+
             oci_log_publisher = OciLogPublisher(
                 config.oci_log,
                 profile=args.profile,
@@ -48,7 +50,7 @@ def main() -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Pull Fusion ERP audit history and publish records to a Kafka-compatible stream."
+        description="Pull Fusion ERP audit history and publish records to Kafka or OCI Logging."
     )
 
     parser.add_argument(
@@ -121,29 +123,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum number of Fusion audit pages to read. Defaults to 100.",
     )
     parser.add_argument(
+        "--target",
+        choices=(TARGET_KAFKA, "oci-log", TARGET_OCI_LOG),
+        default=TARGET_KAFKA,
+        help="Publish target: kafka or oci-log. Defaults to kafka.",
+    )
+    parser.add_argument(
         "--kafka-bootstrap-servers",
-        required=True,
-        help="Kafka bootstrap servers, for example the Terraform kafka_bootstrap_servers output.",
+        default=None,
+        help="Kafka bootstrap servers. Required when --target kafka.",
     )
     parser.add_argument(
         "--kafka-topic",
-        required=True,
-        help="Kafka topic name, for example the Terraform stream_name output.",
+        default=None,
+        help="Kafka topic name. Required when --target kafka.",
     )
     parser.add_argument(
         "--kafka-username",
-        required=True,
-        help="Kafka SASL username. For OCI Streaming, use tenancyName/domain/username/streamPoolId.",
+        default=None,
+        help="Kafka SASL username. Required when --target kafka with SASL.",
     )
 
-    kafka_password = parser.add_mutually_exclusive_group(required=True)
+    kafka_password = parser.add_mutually_exclusive_group()
     kafka_password.add_argument(
         "--kafka-password",
-        help="Kafka SASL password. For OCI Streaming, this is usually an OCI auth token.",
+        help="Kafka SASL password. Required when --target kafka with SASL unless --kafka-password-secret-name is used.",
     )
     kafka_password.add_argument(
         "--kafka-password-secret-name",
-        help="Vault secret name containing the Kafka SASL password.",
+        help="Vault secret name containing the Kafka SASL password. Required when --target kafka with SASL unless --kafka-password is used.",
     )
 
     parser.add_argument(
@@ -164,7 +172,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--oci-log-id",
         default=None,
-        help="Optional OCI custom log OCID. When set, audit messages are also pushed to this custom log.",
+        help="OCI custom log OCID. Required when --target oci-log.",
     )
     parser.add_argument(
         "--oci-log-source",
@@ -203,6 +211,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _payload_from_args(args: argparse.Namespace) -> Dict[str, Any]:
+    target = args.target.replace("-", "_")
     vault = {
         "vault_id": args.vault_id,
         "fusion_base_url_secret_name": args.fusion_base_url_secret_name,
@@ -212,17 +221,8 @@ def _payload_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     if args.kafka_password_secret_name:
         vault["kafka_password_secret_name"] = args.kafka_password_secret_name
 
-    kafka = {
-        "bootstrap_servers": args.kafka_bootstrap_servers,
-        "topic": args.kafka_topic,
-        "security_protocol": args.kafka_security_protocol,
-        "sasl_mechanism": args.kafka_sasl_mechanism,
-        "username": args.kafka_username,
-        "password": args.kafka_password,
-        "client_id": args.kafka_client_id,
-    }
-
     payload = {
+        "target": target,
         "lookback_hours": args.lookback_hours,
         "dry_run": args.dry_run,
         "vault": vault,
@@ -234,11 +234,19 @@ def _payload_from_args(args: argparse.Namespace) -> Dict[str, Any]:
             "page_size": args.page_size,
             "max_pages": args.max_pages,
         },
-        "kafka": kafka,
     }
-    if args.oci_log_id:
+    if target == TARGET_KAFKA:
+        payload["kafka"] = {
+            "bootstrap_servers": args.kafka_bootstrap_servers,
+            "topic": args.kafka_topic,
+            "security_protocol": args.kafka_security_protocol,
+            "sasl_mechanism": args.kafka_sasl_mechanism,
+            "username": args.kafka_username,
+            "password": args.kafka_password,
+            "client_id": args.kafka_client_id,
+        }
+    if target == TARGET_OCI_LOG:
         payload["oci_log"] = {
-            "enabled": True,
             "log_id": args.oci_log_id,
             "source": args.oci_log_source,
             "type": args.oci_log_type,
