@@ -6,13 +6,35 @@ Author: Inge Os, 2026
 
 ## Purpose
 
-This project will contain:
+`fusion_audit` is an OCI Function project for collecting audit trail records from Fusion Cloud ERP and publishing normalized audit events to downstream OCI targets.
 
-- Python source code for the OCI Function in `src/`
-- Terraform infrastructure code in `tf/`
-- Local scratch files in `temp/`
+The function calls the Fusion `fndAuditRESTService` audit history endpoint for a configurable lookback window, wraps each returned audit record in a consistent JSON envelope, and sends the result to one selected target: OCI Streaming through Kafka compatibility or OCI Logging custom logs. Fusion credentials are stored in OCI Vault so they are not embedded in source code or invocation payloads.
 
-The `temp/` directory is intentionally ignored by Git.
+```text
+┌───────────────┐   POST    ┌─────────────────────┐
+│ OCI Function  │ ────────► │ Fusion Cloud        │
+│ (Python 3.11) │ ◄──────── │ fndAuditRESTService │
+└──────┬────────┘           └─────────────────────┘
+       │
+       ├──► OCI Streaming (Kafka-compatible audit events)
+       ├──► OCI Logging (custom audit log)
+       └──► OCI Vault (Fusion credentials)
+```
+
+```text
+┌────────────────────┐
+│ Resource Scheduler │
+└─────────┬──────────┘
+          │ invokes with JSON payload
+          ▼
+┌────────────────────┐
+│ fusion_audit       │
+│ OCI Function       │
+└─────────┬──────────┘
+          │
+          ├──► Kafka target when target = "kafka"
+          └──► OCI log target when target = "oci_log"
+```
 
 ## Project Structure
 
@@ -20,20 +42,29 @@ The `temp/` directory is intentionally ignored by Git.
 fusion_audit/
   README.md
   FUNCTION.md
+  MOCKFUNCTION.md
   .gitignore
+  docs/
+  examples/
+  ops/
+  sql/
   src/
   tf/
+  tools/
   temp/
 ```
 
-## Initial Scope
+The repository contains:
 
-The first implementation scope is a function that can:
+- Python source code for the OCI Function in `src/`
+- Terraform infrastructure code in `tf/`
+- mock Fusion API test tooling in `tools/`
+- example payload and synthetic audit data files in `examples/`
+- operational scripts in `ops/`
+- setup, security, and verification notes in `docs/` and `sql/`
+- local scratch files in `temp/`
 
-1. Connect to Fusion ERP audit trail APIs or exports.
-2. Extract audit trail records.
-3. Transform records into target-ready JSON messages.
-4. Publish messages to either Kafka or OCI Logging custom logs.
+The `temp/` directory is intentionally ignored by Git.
 
 ## Terraform
 
@@ -56,14 +87,6 @@ tf/terraform.tfvars
 That file is ignored by Git. Use `tf/terraform.tfvars.example` as the template.
 
 Important: Terraform will store managed secret values in Terraform state. Before adding real Fusion credentials, use a secured remote backend or another protected state storage pattern.
-
-From the `tf/` directory:
-
-```bash
-terraform init
-terraform plan
-terraform apply
-```
 
 Kafka-compatible producers and connectors should use the `kafka_bootstrap_servers` output and the `stream_name` output as the Kafka topic name. When `target` is `oci_log`, use the `custom_log_id` output as the custom log OCID.
 
@@ -185,6 +208,38 @@ Allow dynamic-group <dynamic-group-name> to use log-content in compartment <comp
 
 It also needs network egress to the Fusion environment and to the selected target endpoint. Set `dry_run` to `true` to test Vault and Fusion access without publishing to Kafka or OCI Logging.
 
+## Scheduling And Security
+
+The project includes operational files for scheduling and access verification:
+
+- [docs/SECURITY_AND_SCHEDULING.md](docs/SECURITY_AND_SCHEDULING.md): OCI Resource Scheduler setup, OCI IAM policies, Fusion roles, and verification guidance
+- [ops/schedule_function_sunday_night.sh](ops/schedule_function_sunday_night.sh): OCI CLI helper that schedules the deployed function every Sunday night
+- [sql/verify_fusion_audit_permissions.sql](sql/verify_fusion_audit_permissions.sql): Fusion SQL checks for direct roles and audit privileges
+
+Create a Sunday night Resource Scheduler schedule with:
+
+```bash
+COMPARTMENT_OCID=ocid1.compartment.oc1..example \
+FUNCTION_OCID=ocid1.fnfunc.oc1..example \
+TIME_STARTS=2026-05-31T23:00:00Z \
+PROFILE=DEFAULT \
+bash ops/schedule_function_sunday_night.sh
+```
+
+By default, the script uses `examples/invoke.json` as the function body and `0 23 * * 7` as the UTC cron expression. Resource Scheduler uses UTC time only, so adjust the cron expression when you need a specific local Sunday night time.
+
+Minimum Fusion runtime access is a custom job role assigned to the integration user with the `View Audit History` privilege:
+
+```text
+FND_VIEW_AUDIT_HISTORY_PRIV
+```
+
+The `Manage Audit Policies` privilege is only needed by setup/admin users who configure what Fusion objects are audited:
+
+```text
+FND_MANAGE_AUDIT_POLICIES_PRIV
+```
+
 ## Run From Command Line
 
 The same function logic can be tested locally from the command line. The CLI entrypoint uses `argparse` and is available through `src/func.py` or the `fusion_audit.cli` module.
@@ -271,92 +326,7 @@ python3 src/func.py --help
 
 ## Mock Fusion API
 
-For local and integration testing, this project includes a mock Fusion audit API server and a synthetic audit template fixture.
-
-Files:
-
-- `examples/fusion_audit_records.json`: synthetic Fusion audit record templates
-- `tools/mock_fusion_api.py`: small Python HTTP server that generates and returns synthetic records
-
-Each server start generates a random sequence of 15 to 50 audit records. All generated records are dated yesterday, start slightly after midnight, and progress in ascending time order so the audit trail looks more natural.
-
-Start the mock server:
-
-```bash
-python3 tools/mock_fusion_api.py --host 127.0.0.1 --port 8000
-```
-
-Control the generated record count or make a run repeatable:
-
-```bash
-python3 tools/mock_fusion_api.py \
-  --host 127.0.0.1 \
-  --port 8000 \
-  --min-records 25 \
-  --max-records 40 \
-  --seed 12345
-```
-
-The mock implements the same audit endpoint used by the function:
-
-```text
-/fscmRestApi/fndAuditRESTService/audittrail/getaudithistory
-```
-
-Health check:
-
-```bash
-curl http://127.0.0.1:8000/health
-```
-
-Manual audit request:
-
-```bash
-curl -X POST http://127.0.0.1:8000/fscmRestApi/fndAuditRESTService/audittrail/getaudithistory \
-  -H "Content-Type: application/json" \
-  -d '{
-    "product": "OPSS",
-    "eventType": "all",
-    "pageNumber": 1,
-    "pageSize": 5
-  }'
-```
-
-To require Basic Auth on the mock server:
-
-```bash
-python3 tools/mock_fusion_api.py \
-  --host 127.0.0.1 \
-  --port 8000 \
-  --username fusion_user \
-  --password fusion_password
-```
-
-For command-line function testing, store these values in the Vault used by `--vault-id`:
-
-- `fusion-audit-api-base-url`: `http://127.0.0.1:8000`
-- `fusion-audit-api-username`: the mock username, or any value if auth is not enabled
-- `fusion-audit-api-password`: the mock password, or any value if auth is not enabled
-
-Then run the CLI with the selected target arguments. For Kafka:
-
-```bash
-PYTHONPATH=src python3 -m fusion_audit.cli \
-  --target kafka \
-  --profile DEFAULT \
-  --vault-id ocid1.vault.oc1..example \
-  --lookback-hours 4 \
-  --fusion-product OPSS \
-  --kafka-bootstrap-servers streaming.eu-frankfurt-1.oci.oraclecloud.com:9092 \
-  --kafka-topic fusion-audit-trail \
-  --kafka-username "tenancyName/domain/username/ocid1.streampool.oc1..example" \
-  --kafka-password-secret-name fusion-audit-kafka-auth-token
-```
-
-By default, the mock server ignores the date window so generated data is easy to query. Add `--enforce-date-filter` if you want it to filter records by `fromDate` and `toDate`; use a date window that covers yesterday.
-
-If the function is deployed in OCI, `127.0.0.1` points to the function container, not your laptop. Use a network-reachable mock host when testing a deployed function.
-
+For local and integration testing, this project includes a mock Fusion audit API server and a synthetic audit template fixture. See [MOCKFUNCTION.md](MOCKFUNCTION.md) for the mock server usage, generated data behavior, and CLI test flow.
 
 ## License
 
@@ -383,9 +353,19 @@ Full license text: [Oracle Universal Permissive License v1.0](https://www.oracle
 - [OCI Terraform resource: `oci_logging_log_group`](https://docs.oracle.com/en-us/iaas/tools/terraform-provider-oci/latest/docs/r/logging_log_group.html)
 - [OCI Terraform resource: `oci_logging_log`](https://docs.oracle.com/en-us/iaas/tools/terraform-provider-oci/latest/docs/r/logging_log.html)
 - [OCI Functions resource principals](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/functionsaccessingociresources.htm)
+- [OCI Functions: Scheduling a Function](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/functionsscheduling.htm)
+- [OCI Resource Scheduler: Creating a Schedule](https://docs.oracle.com/en-us/iaas/Content/resource-scheduler/tasks/create-manage.htm)
+- [OCI Resource Scheduler IAM Policies](https://docs.oracle.com/en-us/iaas/Content/resource-scheduler/references/resource-scheduler-policies.htm)
+- [OCI CLI: `resource-scheduler schedule create`](https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/resource-scheduler/schedule/create.html)
+- [OCI Vault policy reference](https://docs.oracle.com/iaas/Content/Identity/policyreference/keypolicyreference.htm)
+- [OCI Streaming policy reference](https://docs.oracle.com/en-us/iaas/Content/Identity/policyreference/streamingpolicyreference.htm)
+- [OCI Logging policy reference](https://docs.oracle.com/iaas/Content/Identity/policyreference/loggingpolicyreference.htm)
 - [OCI Functions supported language versions](https://docs.oracle.com/en-us/iaas/Content/Functions/Tasks/languagessupportedbyfunctions.htm)
 - [Getting an OCI Vault secret's contents](https://docs.oracle.com/en-us/iaas/Content/secret-management/Tasks/get-secrets-contents.htm)
 - [Fusion Applications audit report REST endpoint](https://docs.oracle.com/en/cloud/saas/applications-common/26b/farca/op-fscmrestapi-fndauditrestservice-audittrail-getaudithistory-post.html)
+- [Fusion Audit Reports and View Audit History privilege](https://docs.oracle.com/en/cloud/saas/applications-common/26a/oacpr/view-audit-report.html)
+- [Fusion Audit Policies and Manage Audit Policies privilege](https://docs.oracle.com/en/cloud/saas/sales/oasal/audit-policies.html)
+- [Fusion Applications Security tables](https://docs.oracle.com/cd/E51367_01/globalop_gs/OEDMH/ASE_tables.htm)
 - [OCI Terraform resource: `oci_streaming_connect_harness`](https://docs.oracle.com/en-us/iaas/tools/terraform-provider-oci/6.14.0/docs/r/streaming_connect_harness.html)
 - [OCI Logging custom logs](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/custom_logs.htm)
 - [Ingesting OCI custom logs with PutLogs](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/using_the_api_customlogs.htm)

@@ -253,7 +253,30 @@ Invoke with the sample payload:
 fn invoke <oci-functions-application-name> fusion_audit < examples/invoke.json
 ```
 
-## 12. Verify Locally
+## 12. Schedule the Function
+
+OCI Resource Scheduler can invoke the deployed function on a weekly schedule and pass the same JSON payload used by `fn invoke`.
+
+Create a Sunday night schedule:
+
+```bash
+COMPARTMENT_OCID=ocid1.compartment.oc1..example \
+FUNCTION_OCID=ocid1.fnfunc.oc1..example \
+TIME_STARTS=2026-05-31T23:00:00Z \
+PROFILE=DEFAULT \
+bash ops/schedule_function_sunday_night.sh
+```
+
+The helper uses:
+
+- `examples/invoke.json` as the function body by default
+- `0 23 * * 7` as the UTC cron expression by default
+- OCI Resource Scheduler action `START_RESOURCE`
+- Resource Scheduler `BODY` parameter for the function invocation JSON
+
+For the IAM policies, Fusion roles, and Fusion SQL verification queries, see [docs/SECURITY_AND_SCHEDULING.md](docs/SECURITY_AND_SCHEDULING.md).
+
+## 13. Verify Locally
 
 Before deploying, run a syntax check:
 
@@ -267,7 +290,7 @@ Validate the example payload can be parsed:
 PYTHONPYCACHEPREFIX=/private/tmp/fusion_audit_pycache PYTHONPATH=src python3 -c 'import json; from fusion_audit.config import load_config; cfg = load_config(json.load(open("examples/invoke.json")), {}); print(cfg.target, cfg.lookback_hours, cfg.fusion.product)'
 ```
 
-## 13. Test From Command Line
+## 14. Test From Command Line
 
 The function can also be tested from the command line through `src/func.py` or `fusion_audit.cli`.
 
@@ -305,30 +328,11 @@ PYTHONPATH=src python3 -m fusion_audit.cli \
   --oci-log-id ocid1.log.oc1..example
 ```
 
-## 14. Test With the Mock Fusion API
+## 15. Test With the Mock Fusion API
 
-The project includes a synthetic Fusion audit template fixture and a mock Fusion API server:
+The project includes a synthetic Fusion audit fixture and a mock Fusion API server for local and integration testing. See [MOCKFUNCTION.md](MOCKFUNCTION.md) for the full mock server setup and CLI test flow.
 
-- `examples/fusion_audit_records.json`
-- `tools/mock_fusion_api.py`
-
-Each mock server start generates a random 15 to 50 record audit sequence from the templates. The generated records are dated yesterday, start just after midnight, and keep ascending timestamps.
-
-Start the mock server:
-
-```bash
-python3 tools/mock_fusion_api.py --host 127.0.0.1 --port 8000
-```
-
-The server exposes the same path used by the function:
-
-```text
-/fscmRestApi/fndAuditRESTService/audittrail/getaudithistory
-```
-
-For CLI testing, store `http://127.0.0.1:8000` as the Fusion base URL secret in the Vault used by `--vault-id`, then run the command-line function with either `--target kafka` or `--target oci-log`.
-
-## 15. Runtime Requirements
+## 16. Runtime Requirements
 
 The deployed function needs:
 
