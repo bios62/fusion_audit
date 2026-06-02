@@ -328,9 +328,9 @@ PYTHONPATH=src python3 -m fusion_audit.cli \
   --oci-log-id ocid1.log.oc1..example
 ```
 
-## 15. Test With the Mock Fusion API
+## 15. Test With the Fusion API Simulator
 
-The project includes a synthetic Fusion audit fixture and a mock Fusion API server for local and integration testing. See [MOCKFUNCTION.md](MOCKFUNCTION.md) for the full mock server setup and CLI test flow.
+The local Fusion API simulator lives in the sibling project [fusion_apisimulator](../fusion_apisimulator/README.md). Use that project when testing `fusion_audit` against synthetic Fusion audit history data.
 
 ## 16. Runtime Requirements
 

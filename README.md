@@ -42,7 +42,6 @@ The function calls the Fusion `fndAuditRESTService` audit history endpoint for a
 fusion_audit/
   README.md
   FUNCTION.md
-  MOCKFUNCTION.md
   .gitignore
   docs/
   examples/
@@ -50,7 +49,6 @@ fusion_audit/
   sql/
   src/
   tf/
-  tools/
   temp/
 ```
 
@@ -58,8 +56,7 @@ The repository contains:
 
 - Python source code for the OCI Function in `src/`
 - Terraform infrastructure code in `tf/`
-- mock Fusion API test tooling in `tools/`
-- example payload and synthetic audit data files in `examples/`
+- example invocation payloads in `examples/`
 - operational scripts in `ops/`
 - setup, security, and verification notes in `docs/` and `sql/`
 - local scratch files in `temp/`
@@ -324,9 +321,10 @@ You can also call the function file directly:
 python3 src/func.py --help
 ```
 
-## Mock Fusion API
+## Fusion API Simulator
 
-For local and integration testing, this project includes a mock Fusion audit API server and a synthetic audit template fixture. See [MOCKFUNCTION.md](MOCKFUNCTION.md) for the mock server usage, generated data behavior, and CLI test flow.
+To assist development and debug, a fusion API simulator has been created at:
+[Fusion API Simulator](https://github.com/bios62/fusion_apisimulator)
 
 ## License
 
