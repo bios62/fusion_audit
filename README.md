@@ -1,12 +1,12 @@
 # fusion_audit
 
-OCI Function project for extracting audit trail data from Fusion ERP and publishing it to either a Kafka stream or an OCI Logging custom log.
-
 Author: Inge Os, 2026
 
-## Purpose
+OCI Function project for extracting audit trail data from Fusion ERP and publishing it to either a Kafka stream or an OCI Logging custom log.
 
 `fusion_audit` is an OCI Function project for collecting audit trail records from Fusion Cloud ERP and publishing normalized audit events to downstream OCI targets.
+
+In the project, fusion_audit can be invoked as a function, triggered by the scheduler, or invoked manually as cli.
 
 The function calls the Fusion `fndAuditRESTService` audit history endpoint for a configurable lookback window, wraps each returned audit record in a consistent JSON envelope, and sends the result to one selected target: OCI Streaming through Kafka compatibility or OCI Logging custom logs. Fusion credentials are stored in OCI Vault so they are not embedded in source code or invocation payloads.
 
